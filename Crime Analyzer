@@ -1,0 +1,249 @@
+namespace CrimeAnalyzer
+{
+	class Program
+	{
+		static void Main(strings[]args)
+		{
+			Crimes crimes = new Crimes(args);
+		}
+	}
+}
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+
+namespace CrimeAnalyzer
+{
+	public class Crimes
+	{
+		private static List<CrimeStats>CrimeStatsList = new List<CrimeStats>();
+		
+		public Crimes(string[]args)
+		{
+			string csvFilePath = string.Empty;
+			string reportFilePath = string.Empty;
+			
+			string startupPath = Directory.GetCurrentDirectory();
+			
+			if(Debugger.IsAttatched)
+			{
+				csvFilePath = Path.Combine(startupPath, "CrimeStats.csv");
+				reportFilePath = Path.Combine(startupPath, "CrimeReport.txt");
+			}
+			else
+			{
+				if(args.Length != 2)
+				{
+					Console.WriteLine("Invalid call.\n Valid call example: CrimeAnalyzer<crime_csv_file_path><report_file_path>");
+					Console.ReadLine();
+					return;
+				}
+				else
+				{
+					csvFilePath = args[0];
+					reportFilePath = args[1];
+					
+					if(!csvFilePath.Contains("\\"))
+					{
+						csvFilePath = Path.Combine(startupPath,csvFilePath);
+					}
+					if(!reportFilePath.Contains("\\"))
+					{
+						reportFilePath = Path.Combine(startupPath,csvFilePath);
+					}
+				}
+			}
+			if (File.Exists(csvFilePath))
+			{
+				if (ReadData(csvFilePath))
+				{
+					try
+					{
+						var file = File.Create(reportFilePath);
+						file.Close();
+					}
+					cathc(Exception fe)
+					{
+						Console.WriteLine($"Failure creating report file with: {reportFilePath}";
+					}
+					WriteReport(reportFilePath);
+				}
+			}
+			else
+			{
+				Console.Write($"This crime data file does not exist:{csvFilePath}");
+			}
+			Console.ReadLine();
+		}
+		private static bool ReadData(string filePath)
+		{
+			Console.WriteLine($"Reading file:{filePath}");
+			try
+			{
+				int columns = 0;
+				string[] crimeStatsLines = File.ReadAllLines(filePath);
+				for (int index = 0; index <crimeStatsLines.Length;index++)
+				{
+					string crimeStatsLine = crimeStatsLines[index];
+					string[] data = crimeStatsLine.Split(',');
+					if (index ==0)
+					{
+						columns = data.Length;
+					}
+					else
+					{
+						if(columns != data.Length)
+						{
+						Console.WriteLine($"Row{index} contains {data.Length} values. Should contain{columns}.");
+						return false;
+						}
+						else
+						{
+							try
+							{
+								CrimeStats.crimeData = new CrimeData();
+								crimeStats.Year = Convert.ToInt32(data[0]);
+								crimeStats.Population = Convert.ToInt32(data[1]);
+								crimeStats.Murders = Convert.ToInt32(data[2]);
+								crimeStats.Rapes = Convert.ToInt32(data[3]);
+								crimeStats.Robberies = Convert.ToInt32(data[4]);
+								crimeStats.ViolentCrimes = Convert.ToInt32(data[5]);
+								crimeStats.Thefts = convert.ToInt32(data[6]);
+								crimeStats.MotorVehicleThefts =Convert.ToInt32(data[7]);
+								CrimeStatsList.Add(crimeData);
+							}
+							catch (InvalidCastException e)
+							{
+								Console.WriteLine($"Row{index} contains an invalid value.");
+								return false;
+							}
+						}
+					}
+				}
+				Console.WriteLine($"Data read successfully");
+				return true;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("csv file read error.");
+				throw ex;
+			}
+		}
+		private static void WriteReport(string filePath)
+		{
+			try
+			{
+				if(CrimeStatsList !=null&&CrimeStatsList.Any())
+				{
+					Console.WriteLine($"writing data to report file: {filePath}");
+					
+					StringBuilder sb = new StringBuilder();
+					sb.Append("Crime Analyzer Report");
+					sb.Append(Enviornment.NewLine);
+					
+					//1
+					int minYear = CrimeStatsList.Min(x=>x.Year);
+					int maxYear = CrimeStatsList.Max(x+>x.Year);
+					int years = maxYear - min Year +1;
+					sb.Append($"Period: {minYear}-{maxYear}({years}years)");
+					sb.Append(Enviornment.NewLine);
+					
+					//2
+					var mYears = from crimeStats in CrimeStatsList where crimeStats.Murders <15000 select crimeStats.Year;
+					string mYearsStr = string.Empty;
+					for (int i=0;i<mYears.Count();i++)
+					{
+						mYearsStr+=mYears.ElementAt(i).ToString();
+						if(i<mYears.Count()-1)mYearsStr+=",";
+					}
+					sb.Append($"Years murder per year <15000: {mYearsStr}");
+					sb.Append(Enviornment.NewLine);
+					//3
+					var rYears = from crimeStats in CrimeStatsList where crimeStats.Robberies >50000 select crimeStats;
+					string rYearsStr = string.Empty;
+					for (int i = 0; i<rYears.Count();i++)
+					{
+						CrimeStats crimeStats=rYears.ElementAt(i);
+						rYearsStr +=$"{crimeStats.Year}={crimeStats.Robberies}";
+						if(i<rYears.Count()-1)rYearsStr+=",";
+					}
+					sb.Append($"Robberies per year >50000: {rYearsStr}");
+					sb.Append(Enviornment.NewLine);
+					
+					//4
+					var vCrime = from crimeStats in CrimeStatsList where crimeStats.Year == 2010 select crimeStats;
+					CrimeStats vCrimeStats = vCrime.First();
+					double vCrimePerCapita = (double)vCrimeStats.ViolentCrimes/(double)vCrimeStats.Population;
+					sb.Append($"Violent Crime per capita rate (2010): {vCrimePerCapita}");
+					sb.Append(Enviornment.NewLine);
+					
+					//5
+					double avgMurders = CrimeStatsList.Sum(x=>x.Murders)/CrimeStatsList.Count;
+					sb.Append($"Average murder per year (all years): {avgMurders}");
+					sb.Append(Enviornment.NewLine);
+					
+					//6
+					int murders1 = CrimeStatsList. where*=(x=>x.Year>=1994&&x.Year<=1997). sum(y=>y.Murders);
+					double avgMurders1 = murders1/CrimeStatsList.Count;
+					sb.Append($"Average murder per year (1994-1997): {avgMurders1}");
+					sb.Append(Enviornment.NewLine);
+					
+					//7
+					int murders2 = CrimeStatsList. where(x=>x.Year>=2010&&x.Year<=2014). sum(y=>y.Murders);
+					double avgMurders2 = murders2/CrimeStatsList.Count;
+					sb.Append($"Average murder per year (2010-2014): {avgMurders2}");
+					sb.Append(Enviornment.NewLine);
+					
+					//8
+					int minTheft = CrimeStatsList. where(x=>x.Year>=1999&&x.Year<=2014). min(x=>x.Thefts);
+					sb.Append($"Minimum thefts per year (1999-2004): {minTheft}");
+					sb.Append(Enviornment.NewLine);
+					
+					//9
+					int maxTheft = CrimeStatsList. where(x=>x.Year>=1999&&x.Year<=2004). max(x=>x.Thefts);
+					sb.Append($"Maximum thefts per year (1999-2004): {maxTheft}");
+					sb.Append(Enviornment.NewLine);
+					
+					//10
+					int yMaxVehicleTheft = CrimeStatsList.OrderByDescending(x=>x.MotorVehicleThefts).First().Year;
+					sb.Append($"Year of highest number of motor vehicle thefts: {yMaxVehicleTheft}");
+					sb.Append(Enviornment.NewLine);
+					
+					using (var stream = new StreamWriter(filePath))
+					{
+						stream.Write(sb.ToString());
+					}
+					Console.WriteLine();
+					Console.WriteLine(sb.ToString());
+					Console.WriteLine();
+					Console.WriteLine($"Written report file successfully at: {filePath}");
+				}
+				else{
+					Console.WriteLine("Error in writing file.");
+					throw ex;
+				}
+			}
+		}
+	}
+}
+
+namespace CrimeAnalyzer
+{
+	public class CrimeStats
+	{
+		public int Year{get;set;}
+		public  int Population {get;set;}
+		public int Murders {get;set;}
+		public int Rapes {get;set;}
+		public int Robberies {get;set}
+		public int ViolentCrimes {get;set;}
+		public int Thefts {get;set;}
+		public int MotorVehicleThefts {get;set;}
+	}
+}
+
+						
+					
